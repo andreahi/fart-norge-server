@@ -7,6 +7,7 @@ import json
 import string
 import re
 import copy
+import math
 
 # VERSION 0.1
 
@@ -172,31 +173,64 @@ def sok( objektTyper, lokasjon=''):
         return r.json()
 
 
-fylker = [3]
+                                        ###___ MAIN __###
+fylker = [5]
 if len(argv) > 1:
     fylker = map(int, argv[1:])
 
-data1 = sok( [{'id': 105, 'antall': 1}, {'id': 775, 'antall': 1}], {'fylke': fylker} )
+data1 = sok( [{'id': 105, 'antall': 1000000}], {'fylke': fylker} )
 #data1 = json.loads(shit)
 
-print json.dumps(data1, indent=4)
-exit(1)
+#print json.dumps(data1, indent=4)
+#exit(1)
 
 resultater = data1['resultater']
 
 coords = []
+print "fylke_" + str(resultater[0]['vegObjekter'][0]['lokasjon']['fylke']['nummer']) + ".bin"
 outfile = open("fylke_" + str(resultater[0]['vegObjekter'][0]['lokasjon']['fylke']['nummer']) + ".bin", 'w')
 num_nodes = 0
+speeds = []
 
 for i in resultater:
     for j in resultater[0]['vegObjekter']:
-        coords = re.sub("(MULTI)?LINESTRING ", "", j['lokasjon']['geometriWgs84'])
-        coords = re.sub("[\(\),]", "", coords).split()
-        coords = map(float, coords)
+        coordstmp = re.sub("(MULTI)?LINESTRING ", "", j['lokasjon']['geometriWgs84'])
+        coordstmp = re.sub("[\(\),]", "", coordstmp).split()
+        coordstmp = map(float, coordstmp)
+
+        coords += (coordstmp)
 
         for k in j['egenskaper']:
             if "enumVerdi" in k and k['navn'] == "Fartsgrense":
-                speed = int(k['verdi'])
+                speeds += [int(k['verdi']) for i in range(0, len(coordstmp)/2)]
+print "speed"
+for e in speeds:
+    print e                
+print "num_nodes: %d" % num_nodes
+#outfile.write(pack("<I", num_nodes))
+outfile.close()
+
+print "totalt antall returnert: " + str(data1['totaltAntallReturnert'])
+
+
+data1 = sok( [{'id': 775, 'antall': 1000000}], {'fylke': fylker} )
+#data1 = json.loads(shit)
+
+print json.dumps(data1, indent=4)
+#exit(1)
+
+resultater = data1['resultater']
+
+coords2 = []
+outfile = open("fylke_" + str(resultater[0]['vegObjekter'][0]['lokasjon']['fylke']['nummer']) + ".bin", 'w')
+num_nodes = 0
+for i in resultater:
+    for j in resultater[0]['vegObjekter']:
+        coordstmp = re.sub("(MULTI)?LINESTRING ", "", j['lokasjon']['geometriWgs84'])
+        coordstmp = re.sub("[\(\),]", "", coordstmp).split()
+        coordstmp = map(float, coordstmp)
+        coords2 += coordstmp
+        
 
         #print coords
         #print ""
@@ -204,12 +238,52 @@ for i in resultater:
         # skriv koordinater og fartsgrense til fil, paa foelgende format:
         # "XYF" X = x-koordinatet, Y = y-koordinatet, F = fartsgrensen
         # big endian fordi java bruker det fremfor little endian
-        for count in xrange(0, len(coords), 2):
-            outfile.write(pack(">ddB", coords[count], coords[count + 1], speed))
-            num_nodes += 1
+        
+newdata = [0 for i in range(0, len(coords)/2)]
 
+itercount = 0
+for count in xrange(0, len(coords2), 2):
+    distance = 23423423423 # large number
+    distanceindex = 0
+    #print "%f, %f" %(coords[count+1],coords[count])
+    for i in xrange(0, len(coords), 2):
+        itercount += 1
+        newdistance = ((coords[i]-coords2[count])**2)+((coords[i+1]-coords2[count+1])**2)
+        if(newdistance < distance):
+            distance = newdistance
+            distanceindex = i
+    newdata[distanceindex/2] = 1
+    print float(count)/len(coords2)
+
+print "len coords: %d" % (len(coords)) 
+print "len newdata: %d" % (len(newdata)) 
+print "len speeds: %d" % (len(speeds)) 
+for e in newdata:
+    print e
+cunt = 0
+for count in xrange(0, len(coords), 2):
+    outfile.write(pack("<ddI", coords[count], coords[count + 1], ((speeds[count/2]/10)) | (newdata[count/2]<<4)))
+    cunt += 1
+print "cunt: %d" %(cunt)
 print "num_nodes: %d" % num_nodes
-#outfile.write(pack("<I", num_nodes))
+outfile.write(pack("<I", len(coords)/2))
+outfile.flush()
 outfile.close()
-
 print "totalt antall returnert: " + str(data1['totaltAntallReturnert'])
+
+#for e in newdata:
+#    print e
+
+print "itercount: " + str(itercount)
+print "len coords: " + str(len(coords))
+print "len coords2: " + str(len(coords2))
+
+
+#
+#cunt: 340884
+#num_nodes: 0
+#totalt antall returnert: 10
+#itercount: 686199492
+#len coords: 681768
+#len coords2: 402
+

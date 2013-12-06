@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -30,52 +31,42 @@ static inline int big_endian32(int a)
 /* write the kdtree to a file. */
 void tree_to_fd(int fd, struct node **treenodes, unsigned int num_nodes)
 {
-    int i, j, writecount;
-    int emptycoord = big_endian32(100000000);
-    unsigned char emptyspeed = 255;
-    /* temporary structure used for nodes */
-    struct __attribute__((packed)) lol {
-        int a, b;
-        unsigned char c;
-    } *bufferptr, *buffer;
+    int i, j, writecount, tmp_write_count;
+    struct outnode *bufferptr, *buffer;
+    struct outnode emptynode;
+    
+    memset(&emptynode, 0, sizeof(struct outnode));
+    emptynode.lo = emptynode.la = big_endian32(100000000);
+
     /* allocate a buffer for the nodes. we write 1024 nodes at the time to
      * reduce runtime */
-    buffer = malloc(1024 * sizeof(struct lol));
+    buffer = malloc(1024 * sizeof(struct outnode));
 
     i = 0;
     while (i < num_nodes) {
         /* fill the buffer with <= 1024 nodes */
         bufferptr = buffer;
         for (j = 0; j < 1024 && i < num_nodes; ++j, ++i, ++bufferptr) {
-            /* use a specified number for empty nodes */
-            if (treenodes[i] == NULL) {
-                bufferptr->a = bufferptr->b = emptycoord;
-                bufferptr->c = emptyspeed;
-
-                //                printf("%d - lat: %22d lon: %22d\r\n", i, bufferptr->a, bufferptr->b);
-
-            } else {
+            if (treenodes[i] == NULL)
+                memcpy(bufferptr, &emptynode, sizeof(struct outnode));
+            else {
+                bufferptr->lo = (int)(treenodes[i]->longitude * 1000000);
+                bufferptr->la = (int)(treenodes[i]->latitude * 1000000);
+                bufferptr->speed = treenodes[i]->speed;
+                bufferptr->atk_strekning = treenodes[i]->atk_strekning;
+                bufferptr->reserved = 0;
 
                 /* convert coordinates to big endian integers */
-                bufferptr->a = (int)(treenodes[i]->longitude * 1000000);
-                bufferptr->b = (int)(treenodes[i]->latitude * 1000000);
-                bufferptr->c = treenodes[i]->speed;
-
-                if (j >= 0 && j <= 10) {
-//                    printf("%d - lat: %.15f lon: %.15f\r\n", i, treenodes[i]->latitude, treenodes[i]->longitude);
-//                    printf("%d - lat: %d lon: %d\r\n", i, bufferptr->b, bufferptr->a);
-                }
-
-                bufferptr->b = big_endian32(bufferptr->b);
-                bufferptr->a = big_endian32(bufferptr->a);
+                bufferptr->lo = big_endian32(bufferptr->lo);
+                bufferptr->la = big_endian32(bufferptr->la);
             }
         }
         /* do the write */
         writecount = 0;
         int tmp_write_count = 0;
-        while (writecount < j * sizeof(struct lol)) {
-            tmp_write_count = write(fd, (char *)buffer + writecount, (j - writecount) * sizeof(struct lol));
-            writecount += tmp_write_count > 0 ? tmp_write_count : 0;
+        while (writecount < j * sizeof(struct outnode)) {
+            tmp_write_count = write(fd, (char *)buffer + writecount, (j - writecount) * sizeof(struct outnode));
+            writecount += likely(tmp_write_count > 0) ? tmp_write_count : 0;
         }
     }
     free(buffer);
@@ -92,10 +83,6 @@ int open_files(struct files *fds, unsigned int *totalnumnodes, char **argv)
     *totalnumnodes = 0;
 
     for (i = 0; argv[i] != NULL; i++) {
-        // fylke 13 finnes ikke
-        if (i == 13)
-            continue;
-
         /* open the file */
         sprintf(buffer, "./fylkedata/fylke_%s.bin", argv[i]);
         if ((fds[i].fd = open(buffer, O_RDONLY)) == -1) {
@@ -145,7 +132,7 @@ int main(int argc, char *argv[])
     for (i = tmp = 0; i < numfiles; ++i) {
         j = fds[i].nodes * sizeof(struct node);
         read(fds[i].fd, nodes + tmp, j);
-        tmp += fds[i].nodes;
+        tmp += j;
 
         close(fds[i].fd);
     }
