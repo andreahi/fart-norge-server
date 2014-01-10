@@ -33,14 +33,15 @@ class ClientConnection(SelectServer.BaseHandlerClass):
             ret = self.recv(1024)
             if not ret:
                 signal.alarm(0) # disable the timeout
-                self.update_stats('error_msgs', "[" + ' '.join(data) + "] " + "hung up before command could be received", self.STATS_APPEND)
+                self.update_stats('error_msgs', "[" + ' '.join(data) + "] " +
+                "hung up before command could be received", SelectServer.STATS_APPEND)
                 return
             data += ret
         signal.alarm(0) # disable the timeout
 
         data = data.strip()
         #print str(data)
-        self.update_stats('commands_executed', str(data), self.STATS_APPEND)
+        self.update_stats('commands_executed', str(data), SelectServer.STATS_APPEND)
 
         data = data.split(" ")
         if data[0] in self.commands:
@@ -48,7 +49,7 @@ class ClientConnection(SelectServer.BaseHandlerClass):
         else:
             ret_msg = "command '" + data[0] + "' not recognized\n"
             self.sendall(ret_msg)
-        self.update_stats('error_msgs', "[" + ' '.join(data) + "] " + ret_msg, self.STATS_APPEND)
+        self.update_stats('error_msgs', "[" + ' '.join(data) + "] " + ret_msg, SelectServer.STATS_APPEND)
 
     def finish(self, args):
         #print str(self.client_address[0]) + " hung up"
