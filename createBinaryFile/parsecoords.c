@@ -11,6 +11,8 @@
 
 #define VERSION "0.1"
 
+extern void write_archive(int outfd, struct node **array, int num_nodes, char *filename);
+
 struct files {
     int fd;
     unsigned int nodes;
@@ -100,6 +102,32 @@ int open_files(struct files *fds, unsigned int *totalnumnodes, char **argv)
     return i;
 }
 
+int shits(int outfd, struct node **treenodes, int totalnumnodes)
+{
+    int num_nodes = (totalnumnodes - 3) / 4;
+    struct node **array = malloc(num_nodes * sizeof(struct node **));
+
+    tree_to_fd(outfd, treenodes, 3);
+
+    kdtree_subify(treenodes, 3, totalnumnodes, array, 0);
+    write_compressed(outfd, array, num_nodes, "subtree_3");
+    //tree_to_fd(outfd, array, num_nodes);
+
+    kdtree_subify(treenodes, 4, totalnumnodes, array, 0);
+    write_compressed(outfd, array, num_nodes, "subtree_4");
+    //tree_to_fd(outfd, array, num_nodes);
+
+    kdtree_subify(treenodes, 5, totalnumnodes, array, 0);
+    write_compressed(outfd, array, num_nodes, "subtree_5");
+    //tree_to_fd(outfd, array, num_nodes);
+
+    kdtree_subify(treenodes, 6, totalnumnodes, array, 0);
+    write_compressed(outfd, array, num_nodes, "subtree_6");
+    //tree_to_fd(outfd, array, num_nodes);
+
+    free(array);
+}
+
 int main(int argc, char *argv[])
 {
     int i, j, numfiles, tmp;
@@ -145,7 +173,7 @@ int main(int argc, char *argv[])
         write(outfd, &i, sizeof(int));
     }
 
-    tree_to_fd(outfd, treenodes, totalnumnodes);
+    shits(outfd, treenodes, totalnumnodes);
     close(outfd);
 
     return 0;

@@ -4,7 +4,7 @@ LDFLAGS=-lm
 
 all: parsecoords
 
-parsecoords: parsecoords.o kdtree.o
+parsecoords: parsecoords.o kdtree.o compress.o
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 %.o: %.c

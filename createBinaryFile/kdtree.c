@@ -11,6 +11,9 @@ struct {
     int depth;
 } stats;
 
+static int _x_compare(const void *a1, const void *b1);
+static int _y_compare(const void *a1, const void *b1);
+
 static int (*sort_functions[2])(const void *, const void *) = {_x_compare, _y_compare};
 
 /* returns 2^a, where ^ is power, not XOR */
@@ -118,6 +121,7 @@ struct node **kdtree_construct(struct node *new_nodes, unsigned int *n)
 }
 
 /* XXX DENNE FUNKSJONEN ER IKKE FERDIG!!!1 */
+/*
 struct node *kdtree_find(struct node *tree, int num_nodes, double lo, double la)
 {
     struct node *current_best = tree, tmp = {.longitude = lo, .latitude = la};
@@ -136,4 +140,16 @@ struct node *kdtree_find(struct node *tree, int num_nodes, double lo, double la)
     }
     curr_index = (curr_index - 1) / 2;
 
+}
+*/
+
+struct node *kdtree_subify(struct node **tree, int tree_index, int max_len, struct node **array, int index)
+{
+    array[index] = tree[tree_index];
+
+    if (tree_index * 2 + 2 >= max_len)
+        return;
+
+    kdtree_subify(tree, tree_index * 2 + 1, max_len, array, index * 2 + 1);
+    kdtree_subify(tree, tree_index * 2 + 2, max_len, array, index * 2 + 2);
 }
